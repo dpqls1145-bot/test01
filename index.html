@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>메모함 — AI 자동 분류</title>
+<style>
+  :root {
+    --bg: #f7f5f1;
+    --surface: #ffffff;
+    --surface-sunken: #f0eee8;
+    --text: #262620;
+    --text-dim: #8a8578;
+    --border: #e5e1d8;
+    --accent: #1f8a70;
+    --accent-ink: #ffffff;
+    --shadow: 0 1px 2px rgba(40,36,20,0.04), 0 8px 24px -12px rgba(40,36,20,0.18);
+    --shadow-lg: 0 4px 10px rgba(40,36,20,0.06), 0 20px 40px -16px rgba(40,36,20,0.24);
+    --cat-work: #3b6ea5;
+    --cat-work-bg: #e8eff6;
+    --cat-idea: #b8792b;
+    --cat-idea-bg: #f7ecdc;
+    --cat-shopping: #b14c63;
+    --cat-shopping-bg: #f7e6ea;
+    --cat-daily: #6b5b95;
+    --cat-daily-bg: #ece8f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16171b;
+      --surface: #1f2024;
+      --surface-sunken: #26272c;
+      --text: #ecebe6;
+      --text-dim: #8d8b83;
+      --border: #333339;
+      --accent: #34ab8e;
+      --accent-ink: #0d1310;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+      --shadow-lg: 0 4px 10px rgba(0,0,0,0.3), 0 20px 40px -16px rgba(0,0,0,0.6);
+      --cat-work: #7fa8d6; --cat-work-bg: #23303e;
+      --cat-idea: #d9a352; --cat-idea-bg: #362b1c;
+      --cat-shopping: #d98599; --cat-shopping-bg: #3a252b;
+      --cat-daily: #a89bd1; --cat-daily-bg: #2b263a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16171b; --surface: #1f2024; --surface-sunken: #26272c;
+    --text: #ecebe6; --text-dim: #8d8b83; --border: #333339;
+    --accent: #34ab8e; --accent-ink: #0d1310;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+    --shadow-lg: 0 4px 10px rgba(0,0,0,0.3), 0 20px 40px -16px rgba(0,0,0,0.6);
+    --cat-work: #7fa8d6; --cat-work-bg: #23303e;
+    --cat-idea: #d9a352; --cat-idea-bg: #362b1c;
+    --cat-shopping: #d98599; --cat-shopping-bg: #3a252b;
+    --cat-daily: #a89bd1; --cat-daily-bg: #2b263a;
+  }
+  :root[data-theme="light"] {
+    --bg: #f7f5f1; --surface: #ffffff; --surface-sunken: #f0eee8;
+    --text: #262620; --text-dim: #8a8578; --border: #e5e1d8;
+    --accent: #1f8a70; --accent-ink: #ffffff;
+    --cat-work: #3b6ea5; --cat-work-bg: #e8eff6;
+    --cat-idea: #b8792b; --cat-idea-bg: #f7ecdc;
+    --cat-shopping: #b14c63; --cat-shopping-bg: #f7e6ea;
+    --cat-daily: #6b5b95; --cat-daily-bg: #ece8f4;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    justify-content: center;
+  }
+  #app {
+    width: 100%;
+    max-width: 460px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    position: relative;
+  }
+  @media (min-width: 461px) {
+    body { padding: 24px 0; }
+    #app { min-height: calc(100vh - 48px); border-radius: 28px; box-shadow: var(--shadow-lg); overflow: hidden; border: 1px solid var(--border); }
+  }
+
+  /* header */
+  .topbar {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: 18px 20px 10px;
+  }
+  .topbar h1 { font-size: 17px; font-weight: 650; letter-spacing: -0.01em; margin: 0; }
+  .topbar .count { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+
+  /* composer */
+  .composer { padding: 6px 20px 14px; display: flex; flex-direction: column; gap: 10px; }
+  #memoInput {
+    width: 100%;
+    min-height: 30vh;
+    max-height: 42vh;
+    resize: none;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 19px;
+    line-height: 1.55;
+    letter-spacing: -0.01em;
+    padding: 4px 2px;
+  }
+  #memoInput::placeholder { color: var(--text-dim); }
+
+  .attach-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .attach-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text-dim); font-size: 13px; font-weight: 500;
+    padding: 7px 12px; border-radius: 100px; cursor: pointer;
+    transition: border-color .15s, color .15s;
+  }
+  .attach-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .attach-menu {
+    display: flex; gap: 8px; animation: pop .12s ease-out;
+  }
+  .attach-menu button {
+    border: 1px solid var(--border); background: var(--surface-sunken); color: var(--text);
+    font-size: 12.5px; padding: 6px 10px; border-radius: 100px; cursor: pointer;
+  }
+  .link-input-row { display: flex; gap: 6px; animation: pop .12s ease-out; flex: 1; min-width: 200px; }
+  .link-input-row input {
+    flex: 1; border: 1px solid var(--border); background: var(--surface);
+    border-radius: 100px; padding: 7px 12px; font-size: 13px; color: var(--text); outline: none;
+  }
+  .link-input-row input:focus { border-color: var(--accent); }
+  .link-input-row button {
+    border: none; background: var(--accent); color: var(--accent-ink);
+    border-radius: 100px; padding: 0 14px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  }
+  @keyframes pop { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: scale(1); } }
+
+  .chips-wrap { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+  .chips-label { font-size: 11px; color: var(--text-dim); letter-spacing: .04em; text-transform: uppercase; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    border-radius: 100px; padding: 7px 13px; font-size: 13.5px; font-weight: 600;
+    cursor: pointer; border: 1.5px solid transparent; transition: transform .1s;
+    user-select: none;
+  }
+  .chip:active { transform: scale(.96); }
+  .chip[data-selected="true"] { border-color: currentColor; }
+  .attachment-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .attachment-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--surface-sunken); border: 1px solid var(--border);
+    border-radius: 8px; padding: 5px 8px 5px 6px; font-size: 12px; color: var(--text-dim);
+    max-width: 220px;
+  }
+  .attachment-chip span.name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .attachment-chip button { border: none; background: none; color: var(--text-dim); cursor: pointer; font-size: 13px; padding: 0 0 0 2px; }
+
+  .save-row { display: flex; align-items: center; gap: 10px; }
+  .manual-select {
+    border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
+    font-size: 12.5px; border-radius: 100px; padding: 7px 10px; outline: none;
+  }
+  #saveBtn {
+    flex: 1; border: none; background: var(--accent); color: var(--accent-ink);
+    font-size: 15px; font-weight: 650; letter-spacing: -0.01em;
+    padding: 12px; border-radius: 14px; cursor: pointer;
+    box-shadow: var(--shadow); transition: opacity .15s, transform .08s;
+  }
+  #saveBtn:disabled { opacity: .35; cursor: default; }
+  #saveBtn:not(:disabled):active { transform: scale(.985); }
+
+  /* divider */
+  .sheet-handle { display: flex; justify-content: center; padding: 10px 0 4px; }
+  .sheet-handle::before { content: ""; width: 36px; height: 4px; border-radius: 4px; background: var(--border); }
+
+  /* tabs */
+  .tabs {
+    display: flex; gap: 6px; padding: 4px 20px 12px; overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex: none; display: flex; align-items: center; gap: 5px;
+    padding: 8px 13px; border-radius: 100px; font-size: 13px; font-weight: 600;
+    background: var(--surface-sunken); color: var(--text-dim); border: 1.5px solid transparent;
+    cursor: pointer; white-space: nowrap; transition: background .15s, color .15s, border-color .15s;
+  }
+  .tab .n { font-variant-numeric: tabular-nums; opacity: .65; font-weight: 500; }
+  .tab[data-active="true"] { background: var(--text); color: var(--bg); }
+  .tab[data-dragover="true"] { border-color: var(--accent); background: var(--surface); }
+
+  /* notes list */
+  .notes {
+    flex: 1; padding: 0 20px 28px; display: flex; flex-direction: column; gap: 10px;
+    overflow-y: auto;
+  }
+  .empty-state {
+    margin-top: 40px; text-align: center; color: var(--text-dim); font-size: 13.5px; line-height: 1.7;
+  }
+  .empty-state .glyph { font-size: 30px; display: block; margin-bottom: 8px; }
+
+  .note-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 13px 14px; box-shadow: var(--shadow); cursor: grab;
+    position: relative;
+  }
+  .note-card[data-dragging="true"] { opacity: .4; }
+  .note-card .row-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
+  .cat-tag {
+    position: relative; display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; font-weight: 650; padding: 4px 10px; border-radius: 100px; cursor: pointer; border: none;
+    flex: none;
+  }
+  .cat-dropdown {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 5;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    box-shadow: var(--shadow-lg); padding: 6px; display: flex; flex-direction: column; gap: 2px;
+    min-width: 128px; animation: pop .12s ease-out;
+  }
+  .cat-dropdown button {
+    display: flex; align-items: center; gap: 7px; border: none; background: none;
+    padding: 7px 9px; border-radius: 8px; font-size: 13px; color: var(--text); cursor: pointer; text-align: left;
+  }
+  .cat-dropdown button:hover { background: var(--surface-sunken); }
+  .note-meta { display: flex; align-items: center; gap: 8px; flex: none; }
+  .note-date { font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  .del-btn {
+    border: none; background: none; color: var(--text-dim); cursor: pointer;
+    font-size: 15px; line-height: 1; padding: 2px 4px; border-radius: 6px;
+  }
+  .del-btn:hover { color: var(--cat-shopping); background: var(--surface-sunken); }
+  .note-text { font-size: 14.5px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+  .note-attachments { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .note-attachments .a-chip {
+    font-size: 11.5px; color: var(--text-dim); background: var(--surface-sunken);
+    border-radius: 7px; padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="topbar">
+    <h1>메모함</h1>
+    <span class="count" id="totalCount">0개의 메모</span>
+  </div>
+
+  <div class="composer">
+    <textarea id="memoInput" placeholder="무엇이든 적어보세요. #해시태그를 쓰면 바로 분류돼요"></textarea>
+
+    <div class="attachment-chips" id="attachmentChips"></div>
+
+    <div class="attach-row" id="attachRow">
+      <button class="attach-btn" id="attachToggle">➕ 파일 첨부</button>
+    </div>
+
+    <div class="chips-wrap" id="chipsWrap" style="display:none;">
+      <span class="chips-label">추천 폴더</span>
+      <div class="chips" id="suggestChips"></div>
+    </div>
+
+    <div class="save-row">
+      <select class="manual-select" id="manualSelect"></select>
+      <button id="saveBtn" disabled>저장하기</button>
+    </div>
+  </div>
+
+  <div class="sheet-handle"></div>
+  <div class="tabs" id="tabsBar"></div>
+  <div class="notes" id="notesContainer"></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var CATS = {
+    work:     { label: "업무",     emoji: "📁", color: "var(--cat-work)",     bg: "var(--cat-work-bg)" },
+    idea:     { label: "아이디어", emoji: "💡", color: "var(--cat-idea)",     bg: "var(--cat-idea-bg)" },
+    shopping: { label: "쇼핑",     emoji: "🛒", color: "var(--cat-shopping)", bg: "var(--cat-shopping-bg)" },
+    daily:    { label: "일상",     emoji: "📝", color: "var(--cat-daily)",    bg: "var(--cat-daily-bg)" }
+  };
+  var CAT_ORDER = ["work", "idea", "shopping", "daily"];
+  var HASHTAG_MAP = { "업무": "work", "아이디어": "idea", "쇼핑": "shopping", "일상": "daily" };
+  var KEYWORDS = {
+    work: ["회의","미팅","보고서","프로젝트","마감","클라이언트","이메일","발표","계약","업무","출장","팀장","상사","야근","기획서","제안서","매출","회사","작업","협업"],
+    idea: ["아이디어","기획","브레인스토밍","컨셉","구상","인사이트","궁리","떠올랐","신박","기발","아이템","영감"],
+    shopping: ["구매","주문","쇼핑","장바구니","결제","배송","세일","할인","사고싶","쿠팡","가격","살까","지름","충동구매","옷","신발","가방"],
+    daily: ["오늘","날씨","기분","일기","하루","저녁","점심","아침","산책","운동","잠","피곤","힐링","친구","여행","휴식","드라마","영화"]
+  };
+
+  var STORAGE_KEY = "ai_memo_notes_v1";
+
+  var state = {
+    notes: loadNotes(),
+    attachments: [],
+    selectedCategory: null,
+    activeTab: "all",
+    openDropdownId: null,
+    dragNoteId: null
+  };
+
+  function loadNotes() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  }
+  function persist() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.notes));
+  }
+
+  function extractHashtags(text) {
+    var m = text.match(/#[\w가-힣]+/g) || [];
+    return m.map(function (t) { return t.slice(1); });
+  }
+
+  function classify(text) {
+    var scores = { work: 0, idea: 0, shopping: 0, daily: 0 };
+    extractHashtags(text).forEach(function (tag) {
+      if (HASHTAG_MAP[tag]) scores[HASHTAG_MAP[tag]] += 100;
+    });
+    var lower = text;
+    CAT_ORDER.forEach(function (cat) {
+      KEYWORDS[cat].forEach(function (kw) {
+        if (lower.indexOf(kw) !== -1) scores[cat] += 1;
+      });
+    });
+    var ranked = CAT_ORDER.slice().sort(function (a, b) { return scores[b] - scores[a]; });
+    var suggestions = ranked.filter(function (c) { return scores[c] > 0; }).slice(0, 3);
+    if (text.trim().length > 0) {
+      var fallbackOrder = ["daily", "idea", "work", "shopping"];
+      var i = 0;
+      while (suggestions.length < 2 && i < fallbackOrder.length) {
+        if (suggestions.indexOf(fallbackOrder[i]) === -1) suggestions.push(fallbackOrder[i]);
+        i++;
+      }
+    }
+    return suggestions;
+  }
+
+  function fmtDate(ts) {
+    var d = new Date(ts);
+    var now = new Date();
+    var sameDay = d.toDateString() === now.toDateString();
+    var hh = String(d.getHours()).padStart(2, "0");
+    var mm = String(d.getMinutes()).padStart(2, "0");
+    if (sameDay) return hh + ":" + mm;
+    return (d.getMonth() + 1) + "." + d.getDate() + " " + hh + ":" + mm;
+  }
+
+  // ---------- DOM refs ----------
+  var $input = document.getElementById("memoInput");
+  var $attachRow = document.getElementById("attachRow");
+  var $attachToggle = document.getElementById("attachToggle");
+  var $attachmentChips = document.getElementById("attachmentChips");
+  var $chipsWrap = document.getElementById("chipsWrap");
+  var $suggestChips = document.getElementById("suggestChips");
+  var $manualSelect = document.getElementById("manualSelect");
+  var $saveBtn = document.getElementById("saveBtn");
+  var $tabsBar = document.getElementById("tabsBar");
+  var $notesContainer = document.getElementById("notesContainer");
+  var $totalCount = document.getElementById("totalCount");
+
+  // manual select options
+  (function initManualSelect() {
+    var optAuto = document.createElement("option");
+    optAuto.value = "";
+    optAuto.textContent = "자동 분류";
+    $manualSelect.appendChild(optAuto);
+    CAT_ORDER.forEach(function (c) {
+      var o = document.createElement("option");
+      o.value = c;
+      o.textContent = CATS[c].emoji + " " + CATS[c].label;
+      $manualSelect.appendChild(o);
+    });
+  })();
+
+  function currentSuggestions() {
+    return classify($input.value);
+  }
+
+  function effectiveCategory() {
+    if (state.selectedCategory) return state.selectedCategory;
+    var s = currentSuggestions();
+    return s.length ? s[0] : "daily";
+  }
+
+  // ---------- render: suggestions ----------
+  function renderSuggestions() {
+    var text = $input.value;
+    var manualOverride = $manualSelect.value;
+    if (manualOverride) {
+      $chipsWrap.style.display = "none";
+      $saveBtn.disabled = text.trim().length === 0;
+      return;
+    }
+    var s = classify(text);
+    if (s.length === 0) {
+      $chipsWrap.style.display = "none";
+      state.selectedCategory = null;
+      $saveBtn.disabled = text.trim().length === 0;
+      return;
+    }
+    if (!state.selectedCategory || s.indexOf(state.selectedCategory) === -1) {
+      state.selectedCategory = s[0];
+    }
+    $chipsWrap.style.display = "flex";
+    $suggestChips.innerHTML = "";
+    s.forEach(function (cat) {
+      var c = CATS[cat];
+      var chip = document.createElement("div");
+      chip.className = "chip";
+      chip.dataset.cat = cat;
+      chip.dataset.selected = String(cat === state.selectedCategory);
+      chip.style.background = c.bg;
+      chip.style.color = c.color;
+      chip.textContent = c.emoji + " " + c.label;
+      chip.addEventListener("click", function () {
+        state.selectedCategory = cat;
+        renderSuggestions();
+      });
+      $suggestChips.appendChild(chip);
+    });
+    $saveBtn.disabled = text.trim().length === 0;
+  }
+
+  $manualSelect.addEventListener("change", renderSuggestions);
+  $input.addEventListener("input", renderSuggestions);
+
+  // ---------- attachments ----------
+  var attachMenuOpen = false;
+  function closeAttachMenu() {
+    attachMenuOpen = false;
+    $attachRow.innerHTML = '<button class="attach-btn" id="attachToggle">➕ 파일 첨부</button>';
+    document.getElementById("attachToggle").addEventListener("click", openAttachMenu);
+  }
+  function openAttachMenu() {
+    attachMenuOpen = true;
+    $attachRow.innerHTML =
+      '<div class="attach-menu">' +
+        '<button data-a="image">🖼️ 이미지 첨부</button>' +
+        '<button data-a="link">🔗 링크 스크랩</button>' +
+        '<button data-a="cancel">취소</button>' +
+      '</div>';
+    $attachRow.querySelector('[data-a="image"]').addEventListener("click", addMockImage);
+    $attachRow.querySelector('[data-a="link"]').addEventListener("click", openLinkInput);
+    $attachRow.querySelector('[data-a="cancel"]').addEventListener("click", closeAttachMenu);
+  }
+  function addMockImage() {
+    var n = state.attachments.filter(function (a) { return a.type === "image"; }).length + 1;
+    state.attachments.push({ type: "image", name: "사진 " + n + ".jpg" });
+    closeAttachMenu();
+    renderAttachmentChips();
+  }
+  function openLinkInput() {
+    $attachRow.innerHTML =
+      '<div class="link-input-row">' +
+        '<input type="text" id="linkUrlInput" placeholder="https:// 링크를 붙여넣으세요" />' +
+        '<button id="linkAddBtn">추가</button>' +
+      '</div>';
+    var $linkInput = document.getElementById("linkUrlInput");
+    $linkInput.focus();
+    function commit() {
+      var v = $linkInput.value.trim();
+      if (v) {
+        state.attachments.push({ type: "link", name: v });
+        renderAttachmentChips();
+      }
+      closeAttachMenu();
+    }
+    document.getElementById("linkAddBtn").addEventListener("click", commit);
+    $linkInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") commit();
+      if (e.key === "Escape") closeAttachMenu();
+    });
+  }
+  function renderAttachmentChips() {
+    $attachmentChips.innerHTML = "";
+    state.attachments.forEach(function (a, idx) {
+      var chip = document.createElement("div");
+      chip.className = "attachment-chip";
+      chip.innerHTML =
+        '<span>' + (a.type === "image" ? "🖼️" : "🔗") + '</span>' +
+        '<span class="name">' + escapeHtml(a.name) + '</span>' +
+        '<button aria-label="첨부 제거">✕</button>';
+      chip.querySelector("button").addEventListener("click", function () {
+        state.attachments.splice(idx, 1);
+        renderAttachmentChips();
+      });
+      $attachmentChips.appendChild(chip);
+    });
+  }
+  document.getElementById("attachToggle").addEventListener("click", openAttachMenu);
+
+  // ---------- save ----------
+  $saveBtn.addEventListener("click", function () {
+    var text = $input.value.trim();
+    if (!text) return;
+    var manualOverride = $manualSelect.value;
+    var cat = manualOverride || effectiveCategory();
+    state.notes.unshift({
+      id: "n" + Date.now() + Math.random().toString(36).slice(2, 7),
+      text: text,
+      category: cat,
+      attachments: state.attachments.slice(),
+      createdAt: Date.now()
+    });
+    persist();
+    $input.value = "";
+    state.attachments = [];
+    state.selectedCategory = null;
+    $manualSelect.value = "";
+    renderAttachmentChips();
+    renderSuggestions();
+    renderTabs();
+    renderNotes();
+    $input.focus();
+  });
+
+  // ---------- tabs ----------
+  var TAB_DEFS = [{ key: "all", label: "전체", emoji: "🗂️" }].concat(
+    CAT_ORDER.map(function (c) { return { key: c, label: CATS[c].label, emoji: CATS[c].emoji }; })
+  );
+
+  function countFor(key) {
+    if (key === "all") return state.notes.length;
+    return state.notes.filter(function (n) { return n.category === key; }).length;
+  }
+
+  function renderTabs() {
+    $tabsBar.innerHTML = "";
+    TAB_DEFS.forEach(function (t) {
+      var el = document.createElement("div");
+      el.className = "tab";
+      el.dataset.active = String(state.activeTab === t.key);
+      el.dataset.key = t.key;
+      el.innerHTML = t.emoji + " " + t.label + ' <span class="n">' + countFor(t.key) + "</span>";
+      el.addEventListener("click", function () {
+        state.activeTab = t.key;
+        renderTabs();
+        renderNotes();
+      });
+      if (t.key !== "all") {
+        el.addEventListener("dragover", function (e) {
+          e.preventDefault();
+          el.dataset.dragover = "true";
+        });
+        el.addEventListener("dragleave", function () { el.dataset.dragover = "false"; });
+        el.addEventListener("drop", function (e) {
+          e.preventDefault();
+          el.dataset.dragover = "false";
+          var id = e.dataTransfer.getData("text/plain");
+          moveNoteCategory(id, t.key);
+        });
+      }
+      $tabsBar.appendChild(el);
+    });
+    $totalCount.textContent = state.notes.length + "개의 메모";
+  }
+
+  function moveNoteCategory(id, cat) {
+    var note = state.notes.find(function (n) { return n.id === id; });
+    if (!note || note.category === cat) return;
+    note.category = cat;
+    persist();
+    renderTabs();
+    renderNotes();
+  }
+
+  // ---------- notes list ----------
+  function escapeHtml(s) {
+    var div = document.createElement("div");
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  function renderNotes() {
+    var list = state.activeTab === "all"
+      ? state.notes
+      : state.notes.filter(function (n) { return n.category === state.activeTab; });
+
+    $notesContainer.innerHTML = "";
+    if (list.length === 0) {
+      var empty = document.createElement("div");
+      empty.className = "empty-state";
+      empty.innerHTML = '<span class="glyph">🗒️</span>아직 메모가 없어요<br/>위에서 첫 메모를 남겨보세요';
+      $notesContainer.appendChild(empty);
+      return;
+    }
+
+    list.forEach(function (note) {
+      var c = CATS[note.category];
+      var card = document.createElement("div");
+      card.className = "note-card";
+      card.draggable = true;
+      card.dataset.id = note.id;
+
+      card.addEventListener("dragstart", function (e) {
+        e.dataTransfer.setData("text/plain", note.id);
+        e.dataTransfer.effectAllowed = "move";
+        card.dataset.dragging = "true";
+      });
+      card.addEventListener("dragend", function () { card.dataset.dragging = "false"; });
+
+      var top = document.createElement("div");
+      top.className = "row-top";
+
+      var tag = document.createElement("button");
+      tag.className = "cat-tag";
+      tag.style.background = c.bg;
+      tag.style.color = c.color;
+      tag.textContent = c.emoji + " " + c.label;
+      tag.addEventListener("click", function (e) {
+        e.stopPropagation();
+        state.openDropdownId = state.openDropdownId === note.id ? null : note.id;
+        renderNotes();
+      });
+
+      if (state.openDropdownId === note.id) {
+        var dd = document.createElement("div");
+        dd.className = "cat-dropdown";
+        CAT_ORDER.forEach(function (cat) {
+          var cc = CATS[cat];
+          var btn = document.createElement("button");
+          btn.innerHTML = cc.emoji + " " + cc.label + (cat === note.category ? " ✓" : "");
+          btn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            note.category = cat;
+            state.openDropdownId = null;
+            persist();
+            renderTabs();
+            renderNotes();
+          });
+          dd.appendChild(btn);
+        });
+        tag.appendChild(dd);
+      }
+
+      var meta = document.createElement("div");
+      meta.className = "note-meta";
+      var date = document.createElement("span");
+      date.className = "note-date";
+      date.textContent = fmtDate(note.createdAt);
+      var del = document.createElement("button");
+      del.className = "del-btn";
+      del.textContent = "✕";
+      del.addEventListener("click", function () {
+        state.notes = state.notes.filter(function (n) { return n.id !== note.id; });
+        persist();
+        renderTabs();
+        renderNotes();
+      });
+      meta.appendChild(date);
+      meta.appendChild(del);
+
+      top.appendChild(tag);
+      top.appendChild(meta);
+
+      var body = document.createElement("div");
+      body.className = "note-text";
+      body.textContent = note.text;
+
+      card.appendChild(top);
+      card.appendChild(body);
+
+      if (note.attachments && note.attachments.length) {
+        var aw = document.createElement("div");
+        aw.className = "note-attachments";
+        note.attachments.forEach(function (a) {
+          var achip = document.createElement("span");
+          achip.className = "a-chip";
+          achip.textContent = (a.type === "image" ? "🖼️ " : "🔗 ") + a.name;
+          aw.appendChild(achip);
+        });
+        card.appendChild(aw);
+      }
+
+      $notesContainer.appendChild(card);
+    });
+  }
+
+  document.addEventListener("click", function (e) {
+    if (state.openDropdownId && !e.target.closest(".cat-tag")) {
+      state.openDropdownId = null;
+      renderNotes();
+    }
+  });
+
+  // ---------- init ----------
+  renderSuggestions();
+  renderTabs();
+  renderNotes();
+})();
+</script>
+</body>
+</html>
