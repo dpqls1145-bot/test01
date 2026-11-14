@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI 작품 포트폴리오</title>
+  <meta name="description" content="AI로 만든 이미지·영상·음악 작품 갤러리">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="hero">
+    <nav class="nav">
+      <span class="brand" id="brand">YOUR NAME</span>
+      <button id="themeToggle" class="icon-btn" aria-label="테마 전환">◐</button>
+    </nav>
+    <h1 id="title">AI로 만든 작품들</h1>
+    <p id="intro" class="intro">여기에 한 줄 소개를 적으세요. (works.js의 profile 항목에서 수정)</p>
+  </header>
+
+  <main>
+    <div class="filters" id="filters" role="tablist" aria-label="카테고리 필터"></div>
+    <section class="grid" id="grid" aria-live="polite"></section>
+    <p class="empty" id="empty" hidden>해당 카테고리에 작품이 없습니다.</p>
+  </main>
+
+  <footer class="footer">
+    <div id="links" class="links"></div>
+    <p class="note">작품은 AI 도구로 생성되었으며, 사용 도구와 제작 방식은 각 작품 상세에 표기합니다.</p>
+  </footer>
+
+  <div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="작품 상세">
+    <button class="lb-close icon-btn" id="lbClose" aria-label="닫기">✕</button>
+    <button class="lb-nav prev icon-btn" id="lbPrev" aria-label="이전">‹</button>
+    <button class="lb-nav next icon-btn" id="lbNext" aria-label="다음">›</button>
+    <figure class="lb-body">
+      <div class="lb-media" id="lbMedia"></div>
+      <figcaption class="lb-caption">
+        <h2 id="lbTitle"></h2>
+        <p id="lbDesc"></p>
+        <dl class="meta" id="lbMeta"></dl>
+      </figcaption>
+    </figure>
+  </div>
+
+  <script src="works.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
